@@ -14,6 +14,9 @@
 - 支持 GitHub 下载地址失败时使用 `mirrorUrl` 备用地址
 - 支持 HTTP 重定向
 - 下载到临时文件，摘要校验成功后再原子替换目标文件
+- 自动将校验通过的压缩包解压到 `downloads/` 下按包名创建的子目录
+- 支持从 JSON request 文件批量生成不同规格
+- 在调用 `generate` 或重新下载前优先检查本地缓存
 - 默认不会覆盖已有文件；已有文件摘要正确时会跳过下载
 - 支持 `--force` 强制重新下载
 
@@ -53,7 +56,16 @@ ring=ringless
 corner=TT1P2V25CCTYP
 ```
 
-下载的 `.tar.gz` 文件默认保存到当前目录。可以用 `--output-dir` 指定目录：
+默认会将压缩包及其解压内容整理到 `./downloads/` 下按包名创建的子目录：
+
+```text
+downloads/
+`-- <asset-name-without-.tar.gz>/
+    |-- <asset>.tar.gz
+    `-- <extracted package files>
+```
+
+可以用 `--output-dir` 指定其他包根目录：
 
 ```bash
 ./download_sram_pdk.py \
@@ -77,6 +89,55 @@ corner=TT1P2V25CCTYP
 ```bash
 ./download_sram_pdk.py --help
 ```
+
+## 批量模式
+
+使用 `--batch` 从一个 JSON 文件读取多组 SRAM 配置。文件可以直接是 JSON 数组，也可以是包含 `requests` 数组的对象。每项使用 API 字段名；省略的字段使用单包模式的默认值。
+
+`requests.json` 示例：
+
+```json
+[
+  {
+    "words": 2048,
+    "bits": 32,
+    "mux": 8,
+    "vt": 0,
+    "lowPower": 0,
+    "redundancy": 0,
+    "wordWrite": 0,
+    "busFormat": 1,
+    "ring": "ringless",
+    "corner": "TT1P2V25CCTYP"
+  },
+  {
+    "words": 4096,
+    "bits": 64,
+    "mux": 8,
+    "vt": 2,
+    "lowPower": 0,
+    "redundancy": 0,
+    "wordWrite": 0,
+    "busFormat": 1,
+    "ring": "ringless",
+    "corner": "TT1P2V85CCTYP"
+  }
+]
+```
+
+运行批量下载：
+
+```bash
+./download_sram_pdk.py \
+  --batch requests.json \
+  --output-dir ./downloads
+```
+
+每项请求都会独立校验和处理。某一项失败不会阻止后续项继续执行；命令最后打印汇总，只要有一项失败就返回退出码 `1`。`--batch` 不能与 `--preview` 同时使用。
+
+脚本会在 `downloads/.sram-download-cache.json` 中保存已校验请求的元数据。再次运行时，脚本会先按完整 payload 检查本地缓存；如果压缩包和 SHA-256 都匹配，就直接复用，不再调用 `generate` 或重新下载。使用 `--force` 可跳过本地缓存并重新生成所有项目。
+
+对于旧版平铺目录中的压缩包，例如 `downloads/TM..._V0L0R0_2048X32M8W0F1.tar.gz`，脚本也会尝试识别 `ringless` 请求。识别成功后会先将压缩包移动到当前包子目录，再进行解压。
 
 ## 预览配置
 
@@ -211,12 +272,14 @@ Content-Type: application/json
 
 ## 文件与校验
 
-下载成功后，脚本会：
+生成请求成功后，脚本会：
 
-1. 将文件写入输出目录中的临时 `.part` 文件
-2. 计算实际 SHA-256
-3. 与接口返回的 `value.sha256` 比较
-4. 校验成功后原子替换为 `value.assetName`
+1. 创建 `downloads/<package-name>/`（或 `--output-dir` 指定的目录）
+2. 将压缩包写入该子目录中的临时 `.part` 文件
+3. 计算实际 SHA-256
+4. 与接口返回的 `value.sha256` 比较
+5. 校验成功后原子替换为 `value.assetName`
+6. 将普通文件和目录解压到同一个包子目录
 
 通常的 SRAM 宏包包含 14 个文件：
 
@@ -226,9 +289,13 @@ Content-Type: application/json
 - 3 个 Verilog 文件
 - 1 个 `.cpf`
 
-脚本只负责下载和校验，不会自动解压 tar.gz。
+压缩包会和解压后的文件保存在同一个子目录中。如果 tar 包包含与压缩包同名的单一顶层目录，解压时会自动去掉这一层，避免出现重复嵌套。如果只想下载而不解压，可以使用 `--no-extract`：
 
-若目标文件已存在：
+```bash
+./download_sram_pdk.py --output-dir ./downloads --no-extract
+```
+
+若目标压缩包已存在：
 
 ```bash
 # 摘要一致时直接跳过
@@ -246,7 +313,7 @@ Content-Type: application/json
 python3 -m unittest -v
 ```
 
-测试不访问外网，覆盖参数校验、API 响应元数据校验、备用下载地址和 SHA-256 校验流程。
+测试不访问外网，覆盖参数校验、API 响应元数据校验、备用下载地址、SHA-256 校验、安全解压和端到端包目录整理流程。
 
 ## 注意事项
 
