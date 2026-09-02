@@ -1,42 +1,44 @@
 # ECOS Factory SRAM PDK Downloader
 
-从 [ECOS Factory ICS55 Single-Port SRAM](https://factory.openecos.com/ip/sram) 生成并下载指定参数的 SRAM PDK 宏包。
+**Language:** English | [简体中文](README.zh-CN.md)
 
-脚本调用 SRAM Generator 的 JSON API，读取服务端返回的 GitHub Release 下载地址，不自行拼接 Release tag，并在下载完成后校验 SHA-256。
+Generate and download an SRAM PDK macro package with selected parameters from [ECOS Factory ICS55 Single-Port SRAM](https://factory.openecos.com/ip/sram).
 
-## 特性
+The script calls the SRAM Generator JSON API, uses the GitHub Release URL returned by the server, and verifies the downloaded file against the returned SHA-256 digest. It does not try to construct Release tags from SRAM parameters.
 
-- 仅使用 Python 标准库，不需要安装第三方 Python 包、`curl` 或 `jq`
-- 在发起请求前校验当前 SRAM CONTRACT 的参数范围
-- 支持预览面积、频率、访问时间和动态电流
-- 支持 GitHub 下载地址失败时使用 `mirrorUrl` 备用地址
-- 支持 HTTP 重定向
-- 下载到临时文件，摘要校验成功后再原子替换目标文件
-- 默认不会覆盖已有文件；已有文件摘要正确时会跳过下载
-- 支持 `--force` 强制重新下载
+## Features
 
-## 环境要求
+- Uses only the Python standard library; no third-party Python packages, `curl`, or `jq` are required
+- Validates the current SRAM CONTRACT before making a request
+- Supports previewing area, frequency, access time, and dynamic current
+- Falls back to `mirrorUrl` if the primary GitHub download URL fails
+- Follows HTTP redirects
+- Downloads to a temporary file and atomically installs the file after digest verification
+- Does not overwrite an existing file by default; skips the download if the existing file already has the expected digest
+- Supports `--force` for an explicit re-download
 
-- Python 3.10 或更高版本
-- 能访问 `https://factory.openecos.com`
+## Requirements
 
-脚本不需要登录信息。当前网页流程未使用登录 token 或 CSRF token，但服务端未来可能增加登录、限流或其他校验。
+- Python 3.10 or newer
+- Network access to `https://factory.openecos.com`
 
-## 快速开始
+The script does not require login credentials. The current web flow does not use a login token or CSRF token, but the service may add authentication, rate limits, or other validation in the future.
 
-为脚本添加可执行权限：
+## Quick Start
+
+Make the script executable:
 
 ```bash
 chmod +x download_sram_pdk.py
 ```
 
-使用默认配置生成并下载：
+Generate and download a package using the default configuration:
 
 ```bash
 ./download_sram_pdk.py
 ```
 
-默认配置为：
+The default configuration is:
 
 ```text
 words=2048
@@ -51,7 +53,7 @@ ring=ringless
 corner=TT1P2V25CCTYP
 ```
 
-下载的 `.tar.gz` 文件默认保存到当前目录。可以用 `--output-dir` 指定目录：
+The `.tar.gz` file is saved in the current directory by default. Use `--output-dir` to select another directory:
 
 ```bash
 ./download_sram_pdk.py \
@@ -68,17 +70,17 @@ corner=TT1P2V25CCTYP
   --output-dir ./downloads
 ```
 
-也可以使用接口字段风格的别名 `--lowPower`、`--wordWrite` 和 `--busFormat`。
+The options `--lowPower`, `--wordWrite`, and `--busFormat` are also accepted as aliases matching the API field names.
 
-查看所有命令行选项：
+Show all command-line options:
 
 ```bash
 ./download_sram_pdk.py --help
 ```
 
-## 预览配置
+## Preview a Configuration
 
-`--preview` 只调用 `/api/ip/sram/preview`，打印服务端 JSON，不会生成或下载文件：
+`--preview` calls `/api/ip/sram/preview`, prints the server JSON response, and does not generate or download a file:
 
 ```bash
 ./download_sram_pdk.py \
@@ -89,7 +91,7 @@ corner=TT1P2V25CCTYP
   --corner TT1P2V25CCTYP
 ```
 
-典型响应：
+Typical response:
 
 ```json
 {
@@ -106,35 +108,35 @@ corner=TT1P2V25CCTYP
 }
 ```
 
-## 参数说明
+## Parameters
 
-| 命令行参数 | JSON 字段 | 含义 | 默认值 |
+| CLI option | JSON field | Meaning | Default |
 | --- | --- | --- | --- |
-| `--words` | `words` | SRAM 深度 | `2048` |
-| `--bits` | `bits` | 数据宽度 | `32` |
+| `--words` | `words` | SRAM depth | `2048` |
+| `--bits` | `bits` | Data width | `32` |
 | `--mux` | `mux` | Column mux | `8` |
-| `--vt` | `vt` | `0` Balanced；`2` Higher speed；`5` Lower leakage | `0` |
-| `--low-power` | `lowPower` | `0` Standard；`2` Nap/Retention/Power-down | `0` |
-| `--redundancy` | `redundancy` | `0` None；`3` Column repair | `0` |
-| `--word-write` | `wordWrite` | `0` 位写使能；`1` 字写 | `0` |
-| `--bus-format` | `busFormat` | `1` 使用 `A[x]`；`0` 使用 `Ax` | `1` |
-| `--ring` | `ring` | `ringless`、`port` 或 `ring` | `ringless` |
-| `--corner` | `corner` | 预览所选 PVT corner | `TT1P2V25CCTYP` |
+| `--vt` | `vt` | `0` Balanced; `2` Higher speed; `5` Lower leakage | `0` |
+| `--low-power` | `lowPower` | `0` Standard; `2` Nap/Retention/Power-down | `0` |
+| `--redundancy` | `redundancy` | `0` None; `3` Column repair | `0` |
+| `--word-write` | `wordWrite` | `0` Bit write enable; `1` Word write | `0` |
+| `--bus-format` | `busFormat` | `1` uses `A[x]`; `0` uses `Ax` | `1` |
+| `--ring` | `ring` | `ringless`, `port`, or `ring` | `ringless` |
+| `--corner` | `corner` | PVT corner selected for preview | `TT1P2V25CCTYP` |
 
-`--lowPower`、`--wordWrite` 和 `--busFormat` 是对应参数的兼容别名。
+The script also accepts `--lowPower`, `--wordWrite`, and `--busFormat` as compatibility aliases.
 
-## 合法范围
+## Valid Ranges
 
-`words` 的范围和步长取决于 `mux`：
+The valid `words` range and step depend on `mux`:
 
-| `mux` | `words` 范围 | 步长 | `bits` 范围 |
+| `mux` | `words` range | Step | `bits` range |
 | ---: | ---: | ---: | ---: |
 | `4` | `32..4096` | `32` | `2..160` |
 | `8` | `64..8192` | `64` | `2..80` |
 | `16` | `128..16384` | `128` | `2..40` |
 | `32` | `256..32768` | `256` | `2..20` |
 
-其他合法值：
+Other valid values:
 
 ```text
 vt:          0, 2, 5
@@ -145,7 +147,7 @@ busFormat:   0, 1
 ring:        ringless, port, ring
 ```
 
-PVT corner：
+Supported PVT corners:
 
 ```text
 TT1P2V25CCTYP
@@ -158,23 +160,23 @@ SS1P08V0CCMAX
 SS1P08V125CCMAX
 ```
 
-## API 流程
+## API Flow
 
-预览请求：
+Preview request:
 
 ```text
 POST https://factory.openecos.com/api/ip/sram/preview
 Content-Type: application/json
 ```
 
-生成请求：
+Generate request:
 
 ```text
 POST https://factory.openecos.com/api/ip/sram/generate
 Content-Type: application/json
 ```
 
-请求 JSON 字段为：
+The request payload is:
 
 ```json
 {
@@ -191,7 +193,7 @@ Content-Type: application/json
 }
 ```
 
-生成成功时，脚本读取以下响应字段：
+A successful generate response contains:
 
 ```json
 {
@@ -205,50 +207,60 @@ Content-Type: application/json
 }
 ```
 
-`downloadUrl` 中的 GitHub Release tag 是服务端生成的 opaque digest。不要根据 SRAM 参数自行拼接下载地址，应始终使用接口返回的 `downloadUrl`。
+The GitHub Release tag in `downloadUrl` is an opaque digest generated by the server. Do not construct a download URL from the SRAM parameters; always use the returned `value.downloadUrl`.
 
-## 文件与校验
+## Files and Verification
 
-下载成功后，脚本会：
+After receiving the package, the script:
 
-1. 将文件写入输出目录中的临时 `.part` 文件
-2. 计算实际 SHA-256
-3. 与接口返回的 `value.sha256` 比较
-4. 校验成功后原子替换为 `value.assetName`
+1. Writes the response to a temporary `.part` file in the output directory
+2. Computes the actual SHA-256 digest
+3. Compares it with `value.sha256`
+4. Atomically renames the verified file to `value.assetName`
 
-通常的 SRAM 宏包包含 14 个文件：
+A typical SRAM macro package contains 14 files:
 
-- 1 个 `.ds`
-- 1 个 `.lef`
-- 8 个 PVT `.lib`
-- 3 个 Verilog 文件
-- 1 个 `.cpf`
+- 1 `.ds` file
+- 1 `.lef` file
+- 8 PVT `.lib` files
+- 3 Verilog files
+- 1 `.cpf` file
 
-脚本只负责下载和校验，不会自动解压 tar.gz。
+The script downloads and verifies the tarball but does not extract it automatically.
 
-若目标文件已存在：
+If the target file already exists:
 
 ```bash
-# 摘要一致时直接跳过
+# Skip the download when the existing digest is correct
 ./download_sram_pdk.py --output-dir ./downloads
 
-# 无论现有摘要如何，都重新下载并校验
+# Re-download and verify even when a file already exists
 ./download_sram_pdk.py --output-dir ./downloads --force
 ```
 
-## 测试
+Additional useful options:
 
-运行本地单元测试：
+```bash
+# Use a different API host
+./download_sram_pdk.py --base-url https://example.invalid
+
+# Set the HTTP timeout in seconds
+./download_sram_pdk.py --timeout 120
+```
+
+## Testing
+
+Run the local unit tests:
 
 ```bash
 python3 -m unittest -v
 ```
 
-测试不访问外网，覆盖参数校验、API 响应元数据校验、备用下载地址和 SHA-256 校验流程。
+The tests do not access the network. They cover parameter validation, generate-response metadata validation, mirror fallback, and SHA-256 verification.
 
-## 注意事项
+## Notes
 
-- 脚本内置的是当前已知 CONTRACT。如果网站更新合法范围或字段，需要同步更新 `download_sram_pdk.py`。
-- 服务端可能返回 HTTP 401、403 或 429。脚本会打印接口返回的错误并退出，不会绕过登录或限流策略。
-- ICS55 PDK 公开仓库按 Apache 2.0 发布，但具体 SRAM 宏包是否允许再分发，应以 ECOS Factory 最新使用条款为准。
-- 相关公开仓库：[icsprout55-pdk](https://github.com/openecos-projects/icsprout55-pdk)。
+- The script embeds the currently known CONTRACT. Update `download_sram_pdk.py` if the website changes its legal ranges or fields.
+- The service may return HTTP 401, 403, or 429. The script reports the server error and exits; it does not bypass authentication or rate limits.
+- The public ICS55 PDK repository is released under Apache 2.0, but redistribution of a specific SRAM macro package should follow the latest ECOS Factory terms of use.
+- Public repository: [icsprout55-pdk](https://github.com/openecos-projects/icsprout55-pdk).
